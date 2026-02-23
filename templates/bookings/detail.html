@@ -1,0 +1,58 @@
+{% extends 'base.html' %}
+
+{% block title %}Booking Details{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Booking #{{ booking.id }}</h2>
+    
+    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
+        <div>
+            <!-- <p><strong>Status:</strong> <span class="badge badge-{{ booking.status|lower }}">{{ booking.status }}</span></p> -->
+            <p><strong>Train:</strong> {{ booking.schedule.train.name }} ({{ booking.schedule.train.train_number }})</p>
+            <p><strong>Source:</strong> {{ booking.schedule.source_station.name }}</p>
+            <p><strong>Destination:</strong> {{ booking.schedule.destination_station.name }}</p>
+        </div>
+        <div>
+            <p><strong>Travel Date:</strong> {{ booking.schedule.travel_date }}</p>
+            <p><strong>Departure:</strong> {{ booking.schedule.departure_time|date:"Y-m-d H:i" }}</p>
+            <p><strong>Created:</strong> {{ booking.created_at|date:"Y-m-d H:i" }}</p>
+            {% if booking.confirmed_at %}
+            <p><strong>Confirmed:</strong> {{ booking.confirmed_at|date:"Y-m-d H:i" }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <h3>Passengers</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Age</th>
+                <!-- <th>Status</th> -->
+            </tr>
+        </thead>
+        <tbody>
+            {% for passenger in booking.passengers.all %}
+            <tr>
+                <td>{{ passenger.name }}</td>
+                <td>{{ passenger.age }}</td>
+                <!-- <td><span class="badge badge-{{ passenger.status|lower }}">{{ passenger.status }}</span></td> -->
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div style="margin-top: 20px;">
+        {% if booking.status == 'PENDING' %}
+        <a href="{% url 'payment_ui' booking.id %}" class="btn btn-success">Make Payment</a>
+        {% elif booking.status == 'CONFIRMED' %}
+        <form method="post" action="{% url 'cancel_booking_ui' booking.id %}" style="display: inline;">
+            {% csrf_token %}
+            <button type="submit" class="btn btn-danger" onclick="return confirm('Are you sure you want to cancel this booking?')">Cancel Booking</button>
+        </form>
+        {% endif %}
+        <a href="{% url 'my_bookings_ui' %}" class="btn btn-secondary">Back to My Bookings</a>
+    </div>
+</div>
+{% endblock %}

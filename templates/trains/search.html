@@ -1,0 +1,78 @@
+{% extends 'base.html' %}
+
+{% block title %}Search Trains{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>Search Trains</h2>
+    <form method="get">
+        <div style="display: grid; grid-template-columns: 1fr 1fr 1fr auto; gap: 15px; align-items: end;">
+            <div class="form-group">
+                <label for="source">Source Station Code</label>
+                <input type="text" id="source" name="source" placeholder="e.g., DEL" value="{{ request.GET.source }}">
+            </div>
+            <div class="form-group">
+                <label for="destination">Destination Station Code</label>
+                <input type="text" id="destination" name="destination" placeholder="e.g., MUM" value="{{ request.GET.destination }}">
+            </div>
+            <div class="form-group">
+                <label for="travel_date">Travel Date (YYYY-MM-DD)</label>
+                <input type="date" id="travel_date" name="travel_date" value="{{ request.GET.travel_date }}">
+            </div>
+            <button type="submit" class="btn">Search</button>
+        </div>
+    </form>
+</div>
+
+{% if error %}
+<div class="alert alert-warning">{{ error }}</div>
+{% endif %}
+
+{% if trains %}
+<div class="card">
+    <h3>Available Trains</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Train Number</th>
+                <th>Train Name</th>
+                <th>Source</th>
+                <th>Destination</th>
+                <th>Travel Date</th>
+                <th>Departure Time</th>
+                <th>Available Seats</th>
+                <th>Action</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for train in trains %}
+            <tr>
+                <td>{{ train.train_number }}</td>
+                <td>{{ train.train }}</td>
+                <td>{{ train.source }}</td>
+                <td>{{ train.destination }}</td>
+                <td>{{ train.travel_date|date:"Y-m-d" }}</td>
+                <td>{{ train.departure_time|date:"H:i" }}</td>
+                <td>
+                    {% if train.available_seats > 0 %}
+                        {{ train.available_seats }}
+                    {% else %}
+                        Full
+                    {% endif %}
+                </td>
+                <td>
+                    {% if train.available_seats > 0 %}
+                        <a href="{% url 'create_booking_ui' train.schedule_id %}" class="btn">Book</a>
+                    {% else %}
+                        <button class="btn btn-secondary" disabled style="cursor: not-allowed;">Full</button>
+                    {% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% elif request.GET.source or request.GET.destination %}
+<div class="alert alert-info">No trains found matching your criteria.</div>
+{% endif %}
+{% endblock %}

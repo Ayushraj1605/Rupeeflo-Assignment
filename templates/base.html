@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Railway Booking System{% endblock %}</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: Arial, sans-serif; line-height: 1.6; background-color: #f5f5f5; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        .navbar { background: #2c3e50; color: #fff; padding: 1rem; margin-bottom: 20px; }
+        .navbar .container { display: flex; justify-content: space-between; align-items: center; }
+        .navbar h1 { font-size: 1.5rem; }
+        .navbar ul { list-style: none; display: flex; gap: 20px; }
+        .navbar a { color: #fff; text-decoration: none; }
+        .navbar a:hover { text-decoration: underline; }
+        .card { background: #fff; padding: 20px; border: 1px solid #ddd; margin-bottom: 20px; }
+        .btn { display: inline-block; padding: 8px 16px; background: #333; color: #fff; border: 1px solid #333; cursor: pointer; text-decoration: none; }
+        .btn:hover { background: #555; border-color: #555; }
+        .btn-secondary { background: #fff; color: #333; border: 1px solid #333; }
+        .btn-secondary:hover { background: #f5f5f5; }
+        .btn-danger { background: #c00; border-color: #c00; }
+        .btn-danger:hover { background: #a00; border-color: #a00; }
+        .btn-success { background: #060; border-color: #060; }
+        .btn-success:hover { background: #050; border-color: #050; }
+        .btn + .btn, .btn + a, a.btn + a.btn { margin-left: 10px; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; }
+        .form-group input, .form-group select { width: 100%; padding: 8px; border: 1px solid #ddd; }
+        .alert { padding: 10px; margin-bottom: 15px; border: 1px solid #ddd; }
+        .alert-success { background: #efe; border-color: #cec; color: #060; }
+        .alert-danger { background: #fee; border-color: #ecc; color: #c00; }
+        .alert-info { background: #eff; border-color: #cee; color: #06c; }
+        .alert-warning { background: #ffe; border-color: #eec; color: #660; }
+        table { width: 100%; border-collapse: collapse; margin-top: 15px; }
+        table th, table td { padding: 10px; text-align: left; border-bottom: 1px solid #ddd; }
+        table th { background: #f5f5f5; }
+        .badge { display: inline-block; padding: 3px 8px; border: 1px solid; font-size: 0.85rem; }
+        .badge-pending { background: #fff3cd; border-color: #ffc107; color: #856404; }
+        .badge-confirmed { background: #d4edda; border-color: #28a745; color: #155724; }
+        .badge-cancelled { background: #e2e3e5; border-color: #6c757d; color: #383d41; }
+        .badge-expired { background: #f8d7da; border-color: #dc3545; color: #721c24; }
+    </style>
+</head>
+<body>
+    <nav class="navbar">
+        <div class="container">
+            <h1>Railway Booking</h1>
+            <ul>
+                {% if user.is_authenticated %}
+                    <li><a href="{% url 'search_trains_ui' %}">Search Trains</a></li>
+                    <li><a href="{% url 'my_bookings_ui' %}">My Bookings</a></li>
+                    <li><a href="{% url 'logout_ui' %}">Logout ({{ user.username }})</a></li>
+                {% else %}
+                    <li><a href="{% url 'login_ui' %}">Login</a></li>
+                    <li><a href="{% url 'register_ui' %}">Register</a></li>
+                {% endif %}
+            </ul>
+        </div>
+    </nav>
+
+    <div class="container">
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-{{ message.tags }}">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+
+        {% block content %}{% endblock %}
+    </div>
+</body>
+</html>

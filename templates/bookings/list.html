@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+
+{% block title %}My Bookings{% endblock %}
+
+{% block content %}
+<div class="card">
+    <h2>My Bookings</h2>
+    {% if bookings %}
+    <table>
+        <thead>
+            <tr>
+                <th>Booking ID</th>
+                <th>Train</th>
+                <th>Date</th>
+                <th>Passengers</th>
+                <th>Status</th>
+                <th>Created</th>
+                <th>Actions</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for booking in bookings %}
+            <tr>
+                <td>#{{ booking.id }}</td>
+                <td>{{ booking.schedule.train.name }}</td>
+                <td>{{ booking.schedule.travel_date }}</td>
+                <td>{{ booking.passenger_count }}</td>
+                <td>
+                    <span class="badge badge-{{ booking.status|lower }}">{{ booking.status }}</span>
+                </td>
+                <td>{{ booking.created_at|date:"Y-m-d H:i" }}</td>
+                <td>
+                    <a href="{% url 'booking_detail_ui' booking.id %}" class="btn" style="padding: 5px 15px;">View</a>
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <div class="alert alert-info">You don't have any bookings yet. <a href="{% url 'search_trains_ui' %}">Search trains</a> to make a booking.</div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,150 @@
+{% extends 'base.html' %}
+
+{% block title %}Complete Payment{% endblock %}
+
+{% block content %}
+<div class="card" style="max-width: 700px; margin: 50px auto;">
+    <h2>Complete Your Booking</h2>
+    
+    <div id="timer-container" style="background: #f8f9fa; border: 2px solid #dee2e6; padding: 15px; border-radius: 4px; text-align: center; margin-bottom: 20px;">
+        <div style="font-size: 0.85rem; color: #6c757d; margin-bottom: 5px;">Time Remaining</div>
+        <div id="countdown-timer" style="font-size: 2rem; font-weight: bold; color: #333;">
+            Loading...
+        </div>
+    </div>
+    
+    <div style="background: #f8f9fa; padding: 15px; border-radius: 4px; margin-bottom: 20px;">
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <div><strong>Train:</strong> {{ booking.schedule.train.name }}</div>
+            <div><strong>Train Number:</strong> {{ booking.schedule.train.train_number }}</div>
+            <div><strong>From:</strong> {{ booking.schedule.source_station.name }}</div>
+            <div><strong>To:</strong> {{ booking.schedule.destination_station.name }}</div>
+            <div><strong>Departure:</strong> {{ booking.schedule.departure_time|date:"d M Y, H:i" }}</div>
+            <div><strong>Total Passengers:</strong> {{ booking.passenger_count }}</div>
+        </div>
+    </div>
+
+    <h3 style="margin-bottom: 10px;">Passenger Details</h3>
+    <table style="margin-bottom: 20px;">
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>Name</th>
+                <th>Age</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for passenger in booking.passengers.all %}
+            <tr>
+                <td>{{ forloop.counter }}</td>
+                <td>{{ passenger.name }}</td>
+                <td>{{ passenger.age }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+
+    <div class="alert alert-info">
+        Pay securely with Razorpay. Amount: ₹{{ amount_rupees|floatformat:2 }}
+    </div>
+
+    <div style="text-align: center; margin-top: 10px;">
+        <button id="pay-btn" class="btn btn-success" style="padding: 12px 30px; font-size: 1rem;">
+            Pay with Razorpay
+        </button>
+        <div style="margin-top: 15px;">
+            <a href="{% url 'booking_detail_ui' booking.id %}" class="btn btn-secondary">← Back</a>
+        </div>
+    </div>
+</div>
+
+<script src="https://checkout.razorpay.com/v1/checkout.js"></script>
+<script>
+    const expiryTime = parseInt("{{ expiry_timestamp}}");
+    const timerElement = document.getElementById('countdown-timer');
+    const timerContainer = document.getElementById('timer-container');
+    const payBtn = document.getElementById('pay-btn');
+    
+    function updateTimer() {
+        const now = Date.now();
+        const remainingMs = expiryTime - now;
+        
+        if (remainingMs <= 0) {
+            timerElement.textContent = '00:00';
+            timerElement.style.color = '#dc3545';
+            timerContainer.style.borderColor = '#dc3545';
+            timerContainer.innerHTML = '<div style="font-size: 1rem; color: #dc3545;">Booking Expired - Redirecting...</div>';
+            
+            if (payBtn) {
+                payBtn.disabled = true;
+                payBtn.style.opacity = '0.5';
+                payBtn.style.cursor = 'not-allowed';
+            }
+            
+            setTimeout(() => {
+                window.location.href = "{% url 'my_bookings_ui' %}";
+            }, 2000);
+            
+            return;
+        }
+        
+        const totalSeconds = Math.floor(remainingMs / 1000);
+        const minutes = Math.floor(totalSeconds / 60);
+        const seconds = totalSeconds % 60;
+        
+        timerElement.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+        
+        // Simple color warning for last minute
+        if (totalSeconds <= 60) {
+            timerElement.style.color = '#dc3545';
+            timerContainer.style.borderColor = '#dc3545';
+        }
+    }
+    
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+
+    function getCookie(name) {
+        const value = `; ${document.cookie}`;
+        const parts = value.split(`; ${name}=`);
+        if (parts.length === 2) return parts.pop().split(';').shift();
+    }
+
+    const razorpayKey = "{{ razorpay_key_id }}";
+    const razorpayOrderId = "{{ order_id }}";
+
+    if (payBtn && razorpayKey && razorpayOrderId) {
+        payBtn.addEventListener('click', function (e) {
+            e.preventDefault();
+            const options = {
+                key: razorpayKey,
+                order_id: razorpayOrderId,
+                handler: function (response) {
+                    fetch("{% url 'verify_payment_api' booking.id %}", {
+                        method: "POST",
+                        headers: {
+                            "Content-Type": "application/json",
+                            "X-CSRFToken": getCookie('csrftoken'),
+                        },
+                        body: JSON.stringify({
+                            order_id: response.razorpay_order_id,
+                            payment_id: response.razorpay_payment_id,
+                            signature: response.razorpay_signature
+                        })
+                    }).then(res => res.json()).then(() => {
+                        window.location.href = "{% url 'booking_detail_ui' booking.id %}";
+                    }).catch(() => {
+                        alert('Payment verification failed.');
+                    });
+                },
+                theme: { color: '#3399cc' }
+            };
+            const rzp = new Razorpay(options);
+            rzp.on('payment.failed', function () {
+                alert('Payment failed. Please try again.');
+            });
+            rzp.open();
+        });
+    }
+</script>
+{% endblock %}
