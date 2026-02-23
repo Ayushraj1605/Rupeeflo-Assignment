@@ -166,7 +166,7 @@ All booking APIs require authentication.
 ---------------------------------------------------------
 4. Booking Lifecycle
 ---------------------------------------------------------
-
+```bash
 PENDING
    ↓ (Payment SUCCESS)
 CONFIRMED
@@ -182,7 +182,7 @@ EXPIRED
 CONFIRMED
    ↓ (User cancels before cutoff)
 CANCELLED
-
+```
 
 5. Key Design Decisions
 
@@ -193,16 +193,7 @@ CANCELLED
 - Payment flow integrated with Razorpay test mode, including signature verification and a webhook for robust confirmation.
 
 ---------------------------------------------------------
-6. Future Improvements
----------------------------------------------------------
-
-- Seat-level allocation instead of count-based.
-- Richer payment gateway handling (refunds, partial payments, retries).
-- Admin dashboards and reporting.
-- Pagination and performance optimizations on list endpoints.
-
----------------------------------------------------------
-7. Razorpay + ngrok (local webhook testing)
+6. Razorpay + ngrok (local webhook testing)
 ---------------------------------------------------------
 
 - Start server: `python manage.py runserver 0.0.0.0:8000`
@@ -218,7 +209,7 @@ CANCELLED
 - Log in via the same ngrok URL (so session cookies match) before paying.
 - Flow: create booking → pay via Razorpay checkout → webhook confirms booking server-side; UI verify call is optional now.
 
-8. Architecture / Design Overview
+7. Architecture / Design Overview
 ---------------------------------------------------------
 
 ### High-level layers
@@ -295,7 +286,7 @@ This keeps confirmed data strongly consistent in the DB while using Redis for fa
   - Safe to receive duplicates; idempotency in `process_payment` prevents double processing.
 
 ---------------------------------------------------------
-9. Assumptions
+8. Assumptions
 ---------------------------------------------------------
 
 - Single class of travel; all seats are homogeneous and count-based (no berth/coach-level allocation).
@@ -305,47 +296,3 @@ This keeps confirmed data strongly consistent in the DB while using Redis for fa
 - One user account represents a single customer.
 
 These simplify the model while focusing on seat locking, race conditions, and booking lifecycle correctness.
-
----------------------------------------------------------
-10. Demo Video Guide (5–6 minutes)
----------------------------------------------------------
-
-When recording a short demo video, you can structure it as follows:
-
-1. **High-level system overview (30–60 seconds)**
-   - Briefly describe the stack (Django, DRF, Redis, Celery, Razorpay).
-   - Show the folder structure (apps.trains, apps.bookings, apps.core, config).
-
-2. **Architecture and key backend decisions (1.5–2 minutes)**
-   - Explain the separation between UI views and API views.
-   - Walk through `apps.bookings.services`:
-     - `create_booking` (seat locking, passenger creation, scheduling `expire_booking`).
-     - `process_payment` (transaction, idempotency, Redis decrement).
-     - `cancel_booking` (only touching Redis when booking was still pending).
-   - Mention Redis `seat_lock:<schedule_id>` and how availability is computed.
-   - Briefly show `expire_booking` Celery task and how it enforces expiry.
-
-3. **System flow demo (2–3 minutes)**
-   - From the Web UI (via localhost or ngrok):
-     - Login or register a user.
-     - Search for trains.
-     - Open a schedule and show available seats.
-     - Create a booking with one or more passengers.
-     - Show booking detail page in `PENDING` state, with the payment timer.
-   - Start a payment:
-     - Open the Razorpay checkout.
-     - Complete a test payment.
-     - Show how the booking moves to `CONFIRMED` in the detail page.
-     - Mention that under the hood, either the webhook or the verify endpoint called `process_payment`.
-
-4. **Race-condition and diagnostics highlights (1–1.5 minutes)**
-   - Briefly mention scenarios covered in `PROBLEMS_AND_SOLUTIONS.md`:
-     - double-decrement bugs (cancellation/expiry),
-     - expiry vs payment race, negative Redis locks.
-   - Show how `check_seats.py` or `fix_redis_locks.py` can be used to inspect/fix Redis vs DB mismatches.
-
-5. **Wrap-up (30 seconds)**
-   - Summarize the booking lifecycle: PENDING → CONFIRMED/EXPIRED → CANCELLED.
-   - Call out the main design goals: correctness under concurrency, clear status transitions, and idempotent payment processing.
-
-This structure ensures the demo covers system flow, key backend decisions, and the end-to-end booking workflow in a concise 5–6 minutes.
