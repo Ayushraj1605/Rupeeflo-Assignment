@@ -21,7 +21,7 @@ and realistic booking lifecycle simulation.
 ### 1. Clone repository
 
 ```bash
-git clone <repo-url>
+git clone https://github.com/Ayushraj1605/Rupeeflo-Assignment.git
 cd railway-booking-system
 ```
 
