@@ -7,7 +7,6 @@ A simplified Railway Ticket Booking System with both Web UI and REST API, built 
 - Django REST Framework
 - Redis (Seat Locking)
 - Celery (Background Tasks)
-- JWT Authentication
 - Server-side rendered UI
 
 The system focuses on backend design, data modeling, concurrency handling,
@@ -312,5 +311,6 @@ This keeps confirmed data strongly consistent in the DB while using Redis for fa
 - Booking cutoff is 2 hours before departure; cancellations are not allowed after that cutoff.
 - Payments are handled via Razorpay test environment; no real money is involved.
 - One user account represents a single customer.
+
 
 These simplify the model while focusing on seat locking, race conditions, and booking lifecycle correctness.
