@@ -13,10 +13,11 @@ A simplified Railway Ticket Booking System with both Web UI and REST API, built 
 The system focuses on backend design, data modeling, concurrency handling,
 and realistic booking lifecycle simulation.
 
+---
 
----------------------------------------------------------
 1. Setup & Run Instructions
----------------------------------------------------------
+
+---
 
 ### 1. Clone repository
 
@@ -83,7 +84,7 @@ python manage.py shell
 Then open `create_sample_data.py`, copy its entire contents, paste into the shell, and press Enter. You should see logs like:
 
 ```text
-✓ Sample data created successfully!
+Sample data created successfully!
 You can now:
 1. Visit http://localhost:8000/
 2. Register/Login
@@ -107,8 +108,9 @@ python manage.py runserver 0.0.0.0:8000
 ```
 
 Visit:
+
 - Web UI: http://localhost:8000/
-- Admin:  http://localhost:8000/admin/
+- Admin: http://localhost:8000/admin/
 
 ### 11. Start Celery worker (new terminal, same venv)
 
@@ -118,10 +120,11 @@ python -m celery -A config worker --loglevel=info --pool=solo
 
 Celery runs the background expiry task that moves `PENDING` bookings to `EXPIRED` after the lock TTL.
 
+---
 
----------------------------------------------------------
 2. Web UI Flow
----------------------------------------------------------
+
+---
 
 1. Register/Login at http://localhost:8000/ (or your ngrok URL when testing webhooks)
 2. Search for trains by source/destination
@@ -132,26 +135,28 @@ Celery runs the background expiry task that moves `PENDING` bookings to `EXPIRED
 7. View all your bookings
 8. Cancel bookings (if eligible)
 
+---
 
----------------------------------------------------------
 3. API Authentication Flow
----------------------------------------------------------
+
+---
 
 1. Register User
-POST /api/auth/register/
+   POST /api/auth/register/
 
 2. Login User
-POST /api/auth/login/
+   POST /api/auth/login/
 
 3. Use Access Token
-Authorization: Bearer <access_token>
+   Authorization: Bearer <access_token>
 
 All booking APIs require authentication.
 
+---
 
----------------------------------------------------------
 3. Core System Flow
----------------------------------------------------------
+
+---
 
 1. User searches trains
 2. System shows real-time availability
@@ -162,10 +167,12 @@ All booking APIs require authentication.
 7. On SUCCESS → booking CONFIRMED
 8. On FAILURE or timeout → booking EXPIRED
 
+---
 
----------------------------------------------------------
 4. Booking Lifecycle
----------------------------------------------------------
+
+---
+
 ```bash
 PENDING
    ↓ (Payment SUCCESS)
@@ -184,7 +191,11 @@ CONFIRMED
 CANCELLED
 ```
 
+---
+
 5. Key Design Decisions
+
+---
 
 - Count-based seats (no seat numbers) per schedule; availability is derived from total seats minus confirmed seats and Redis locks.
 - `seed_schedules` management command to generate per-day schedules for a date range using predefined routes.
@@ -192,25 +203,30 @@ CANCELLED
 - Celery task `expire_booking` owns expiry; front-end timers are informational and derived from server-side timestamps.
 - Payment flow integrated with Razorpay test mode, including signature verification and a webhook for robust confirmation.
 
----------------------------------------------------------
+---
+
 6. Razorpay + ngrok (local webhook testing)
----------------------------------------------------------
+
+---
 
 - Start server: `python manage.py runserver 0.0.0.0:8000`
 - Start tunnel: `ngrok http 8000` → use the HTTPS URL it prints
 - Set env in `.env` (test keys + webhook secret):
-   - `RAZORPAY_KEY_ID=...`
-   - `RAZORPAY_KEY_SECRET=...`
-   - `RAZORPAY_WEBHOOK_SECRET=...`
+  - `RAZORPAY_KEY_ID=...`
+  - `RAZORPAY_KEY_SECRET=...`
+  - `RAZORPAY_WEBHOOK_SECRET=...`
 - In Razorpay Dashboard (Test mode):
-   - Webhook URL: `<your-ngrok-https>/api/bookings/razorpay/webhook/`
-   - Secret: same as `RAZORPAY_WEBHOOK_SECRET`
-   - Events: check `payment.captured`
+  - Webhook URL: `<your-ngrok-https>/api/bookings/razorpay/webhook/`
+  - Secret: same as `RAZORPAY_WEBHOOK_SECRET`
+  - Events: check `payment.captured`
 - Log in via the same ngrok URL (so session cookies match) before paying.
 - Flow: create booking → pay via Razorpay checkout → webhook confirms booking server-side; UI verify call is optional now.
 
+---
+
 7. Architecture / Design Overview
----------------------------------------------------------
+
+---
 
 ### High-level layers
 
@@ -285,9 +301,11 @@ This keeps confirmed data strongly consistent in the DB while using Redis for fa
   - On `payment.captured`, it fetches the Razorpay order, reads `receipt` (booking id), and calls `process_payment(booking_id, "SUCCESS")`.
   - Safe to receive duplicates; idempotency in `process_payment` prevents double processing.
 
----------------------------------------------------------
+---
+
 8. Assumptions
----------------------------------------------------------
+
+---
 
 - Single class of travel; all seats are homogeneous and count-based (no berth/coach-level allocation).
 - Flat fare of ₹500 per passenger (configurable via `FARE_PER_PASSENGER` in `apps.bookings.services`).

@@ -175,10 +175,8 @@ def create_payment_order_api(request, booking_id):
 @authentication_classes([SessionAuthentication, JWTAuthentication])
 @permission_classes([AllowAny])
 def verify_payment_api(request, booking_id):
-    # Optional: allow both session and JWT; signature check protects this endpoint
     booking = get_object_or_404(Booking, id=booking_id)
 
-    # If already confirmed (e.g. webhook already handled it), return success idempotently
     if booking.status == BookingStatus.CONFIRMED:
         return Response({"status": booking.status, "message": "Payment already verified"})
 
@@ -192,7 +190,6 @@ def verify_payment_api(request, booking_id):
     if not all([order_id, payment_id, signature]):
         return Response({"error": "Missing payment parameters"}, status=400)
 
-    # Raises if invalid
     verify_razorpay_signature(order_id, payment_id, signature)
 
     booking, message = process_payment(booking_id, "SUCCESS")
