@@ -26,7 +26,7 @@
                 <td>{{ booking.schedule.travel_date }}</td>
                 <td>{{ booking.passenger_count }}</td>
                 <td>
-                    <span class="badge badge-{{ booking.status|lower }}">{{ booking.status }}</span>
+                    <span class="badge badge-{{ booking.status|lower }}">{{ booking.get_status_display }}</span>
                 </td>
                 <td>{{ booking.created_at|date:"Y-m-d H:i" }}</td>
                 <td>

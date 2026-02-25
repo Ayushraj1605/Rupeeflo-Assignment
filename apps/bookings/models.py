@@ -8,6 +8,7 @@ class BookingStatus(models.TextChoices):
     CONFIRMED = "CONFIRMED", "Confirmed"
     CANCELLED = "CANCELLED", "Cancelled"
     EXPIRED = "EXPIRED", "Expired"
+    PAYMENT_FAILED = "PAYMENT_FAILED", "Payment Failed"
 
 
 class Booking(models.Model):

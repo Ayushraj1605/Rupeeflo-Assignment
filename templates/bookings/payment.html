@@ -94,7 +94,6 @@
         
         timerElement.textContent = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
         
-        // Simple color warning for last minute
         if (totalSeconds <= 60) {
             timerElement.style.color = '#dc3545';
             timerContainer.style.borderColor = '#dc3545';

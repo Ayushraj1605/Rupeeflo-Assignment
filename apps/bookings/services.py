@@ -127,7 +127,11 @@ def cancel_booking(booking_id):
         except Booking.DoesNotExist:
             return None, "Booking not found"
 
-        if booking.status in ["CANCELLED", "EXPIRED"]:
+        if booking.status in [
+            BookingStatus.CANCELLED,
+            BookingStatus.EXPIRED,
+            BookingStatus.PAYMENT_FAILED,
+        ]:
             return None, "Booking already inactive"
 
         schedule = booking.schedule
@@ -162,7 +166,11 @@ def process_payment(booking_id, payment_status):
         if booking.status == BookingStatus.CONFIRMED:
             return booking, "Booking already confirmed"
 
-        if booking.status in [BookingStatus.EXPIRED, BookingStatus.CANCELLED]:
+        if booking.status in [
+            BookingStatus.EXPIRED,
+            BookingStatus.CANCELLED,
+            BookingStatus.PAYMENT_FAILED,
+        ]:
             return None, "Booking not eligible for payment"
 
         if payment_status == "SUCCESS":
@@ -180,7 +188,7 @@ def process_payment(booking_id, payment_status):
             return booking, "Payment successful. Booking confirmed."
 
         else:
-            booking.status = BookingStatus.EXPIRED
+            booking.status = BookingStatus.PAYMENT_FAILED
             booking.save()
 
             booking.passengers.all().update(status="EXPIRED")

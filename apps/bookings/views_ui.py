@@ -29,7 +29,6 @@ def create_booking_ui(request, schedule_id):
     available_seats = schedule.total_seats - confirmed_seats - locked_seats
     
     if request.method == 'POST':
-        # Extract passenger data from form
         passengers = []
         i = 0
         while f'passenger_name_{i}' in request.POST:
@@ -125,7 +124,6 @@ def payment_ui(request, booking_id):
         messages.warning(request, 'This booking is not eligible for payment')
         return redirect('booking_detail_ui', booking_id=booking_id)
     
-    # Calculate expiry time
     expiry_time = booking.created_at.timestamp() + LOCK_TTL
     current_time = timezone.now().timestamp()
     remaining_seconds = max(0, int(expiry_time - current_time))
