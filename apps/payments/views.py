@@ -8,15 +8,19 @@ from django.shortcuts import get_object_or_404
 from django.views.decorators.csrf import csrf_exempt
 import razorpay
 from apps.bookings.models import Booking, BookingStatus
+from .models import Refund, RefundStatus
 from .serializers import (
     CreatePaymentOrderResponseSerializer,
     VerifyPaymentRequestSerializer,
     PaymentStatusResponseSerializer,
+    RefundRequestSerializer,
+    RefundResponseSerializer,
 )
 from .services import (
     create_razorpay_order,
     verify_razorpay_signature,
     process_payment,
+    initiate_refund,
 )
 
 
@@ -64,7 +68,12 @@ def verify_payment_api(request, booking_id):
         validated["signature"],
     )
 
-    booking, message = process_payment(booking_id, "SUCCESS")
+    booking, message = process_payment(
+        booking_id,
+        "SUCCESS",
+        razorpay_payment_id=validated["payment_id"],
+        razorpay_order_id=validated["order_id"],
+    )
     if booking is None:
         return Response({"error": message}, status=400)
 
@@ -109,11 +118,56 @@ def razorpay_webhook_api(request):
         except Exception:
             return Response({"error": "Could not resolve booking from order"}, status=400)
 
-        booking, message = process_payment(booking_id, "SUCCESS")
+        payment_id = payment_entity.get("id")
+        booking, message = process_payment(
+            booking_id,
+            "SUCCESS",
+            razorpay_payment_id=payment_id,
+            razorpay_order_id=order_id,
+        )
         serializer = PaymentStatusResponseSerializer({
             "status": booking.status if booking else None,
             "message": message,
         })
         return Response(serializer.data, status=200)
 
+    if event in ("refund.processed", "refund.failed"):
+        refund_entity = payload.get("payload", {}).get("refund", {}).get("entity", {})
+        razorpay_refund_id = refund_entity.get("id")
+        if razorpay_refund_id:
+            new_status = RefundStatus.PROCESSED if event == "refund.processed" else RefundStatus.FAILED
+            Refund.objects.filter(razorpay_refund_id=razorpay_refund_id).update(status=new_status)
+        return Response({"status": "ok"}, status=200)
+
     return Response({"status": "ignored"}, status=200)
+
+
+@api_view(['POST'])
+@permission_classes([IsAuthenticated])
+def refund_booking_api(request, booking_id):
+    booking = get_object_or_404(Booking, id=booking_id, user=request.user)
+
+    if booking.status != BookingStatus.CANCELLED:
+        return Response({"error": "Only cancelled bookings are eligible for refund"}, status=400)
+
+    input_serializer = RefundRequestSerializer(data=request.data)
+    if not input_serializer.is_valid():
+        return Response(input_serializer.errors, status=400)
+
+    refund, message = initiate_refund(
+        booking_id,
+        reason=input_serializer.validated_data["reason"],
+    )
+
+    if refund is None:
+        return Response({"error": message}, status=400)
+
+    serializer = RefundResponseSerializer({
+        "refund_id": refund.id,
+        "razorpay_refund_id": refund.razorpay_refund_id,
+        "amount_paise": refund.amount_paise,
+        "status": refund.status,
+        "reason": refund.reason,
+        "message": message,
+    })
+    return Response(serializer.data)

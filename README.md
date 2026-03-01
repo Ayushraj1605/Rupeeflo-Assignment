@@ -1,316 +1,156 @@
-# Railway Ticket Booking System
+﻿# Railway Booking System
 
-A simplified Railway Ticket Booking System with both Web UI and REST API, built using:
-
-- Python
-- Django
-- Django REST Framework
-- Redis (Seat Locking)
-- Celery (Background Tasks)
-- Server-side rendered UI
-
-The system focuses on backend design, data modeling, concurrency handling,
-and realistic booking lifecycle simulation.
+A backend for booking train tickets. Users can search trains, book seats, pay via Razorpay, cancel bookings, and get automatic refunds. Built with Django, Redis for seat locking, and Celery for background expiry.
 
 ---
 
-1. Setup & Run Instructions
+## Getting Started
 
----
+### Prerequisites
 
-### 1. Clone repository
+- Python 3.10+
+- Redis running on `localhost:6379`
+- A free [Razorpay](https://razorpay.com) test account
+
+### 1. Clone and set up
 
 ```bash
 git clone https://github.com/Ayushraj1605/Rupeeflo-Assignment.git
 cd railway-booking-system
-```
-
-### 2. Create and activate virtual environment (Windows)
-
-```bash
 python -m venv venv
-venv\Scripts\activate
-```
-
-### 3. Install dependencies
-
-```bash
+venv\Scripts\activate        # Windows
 pip install -r requirements.txt
 ```
 
-### 4. Configure environment variables
+### 2. Create your `.env` file
 
-Create a `.env` file in the project root (same level as `manage.py`) with at least:
+Create a `.env` file in the root of the project:
 
 ```env
-RAZORPAY_KEY_ID="<your-test-key-id>"
-RAZORPAY_KEY_SECRET="<your-test-key-secret>"
-RAZORPAY_WEBHOOK_SECRET="<some-webhook-secret>"
+RAZORPAY_KEY_ID=rzp_test_xxxxxxxxxxxx
+RAZORPAY_KEY_SECRET=your_secret_here
+RAZORPAY_WEBHOOK_SECRET=any_string_you_choose
 ```
 
-These are used for Razorpay test payments and webhook verification. For basic local testing without webhooks you can leave the defaults from `config/settings.py`.
+Get these from your Razorpay dashboard under **Settings → API Keys** (make sure you are in Test Mode).
 
-### 5. Run Redis
-
-You need a local Redis instance. Easiest via Docker:
+### 3. Start Redis
 
 ```bash
 docker run -d -p 6379:6379 redis
 ```
 
-Or run a local Redis server on `localhost:6379`.
-
-### 6. Run database migrations
+### 4. Run migrations and create an admin user
 
 ```bash
 python manage.py migrate
-```
-
-### 7. Create superuser (admin)
-
-```bash
 python manage.py createsuperuser
 ```
 
-### 8. Seed sample stations, trains, and a few schedules (MANDATORY once per fresh DB)
+### 5. Seed train data
 
-This script lives in `create_sample_data.py` and is meant to be pasted into the Django shell:
+This only needs to be done once on a fresh database.
 
 ```bash
 python manage.py shell
 ```
 
-Then open `create_sample_data.py`, copy its entire contents, paste into the shell, and press Enter. You should see logs like:
+Copy the contents of `create_sample_data.py` and paste it into the shell. You will see a success message once done.
 
-```text
-Sample data created successfully!
-You can now:
-1. Visit http://localhost:8000/
-2. Register/Login
-3. Search trains and make bookings
-```
-
-### 9. Generate rolling schedules for multiple days (optional but recommended)
-
-The `seed_schedules` management command creates schedules per day for a range, based on predefined routes:
+### 6. Generate schedules (optional but recommended)
 
 ```bash
 python manage.py seed_schedules --days 14
 ```
 
-This keeps schedules available for the next 14 days using the trains seeded by `create_sample_data.py`.
+This creates bookable schedules for the next 14 days.
 
-### 10. Start Django server
+### 7. Start the server
 
 ```bash
-python manage.py runserver 0.0.0.0:8000
+python manage.py runserver
 ```
 
-Visit:
+- Web UI: http://localhost:8000
+- Admin panel: http://localhost:8000/admin
 
-- Web UI: http://localhost:8000/
-- Admin: http://localhost:8000/admin/
-
-### 11. Start Celery worker (new terminal, same venv)
+### 8. Start the Celery worker (separate terminal)
 
 ```bash
 python -m celery -A config worker --loglevel=info --pool=solo
 ```
 
-Celery runs the background expiry task that moves `PENDING` bookings to `EXPIRED` after the lock TTL.
+This handles automatic booking expiry after 15 minutes.
 
 ---
 
-2. Web UI Flow
+## How It Works
+
+### Booking flow
+
+1. User searches for trains by source, destination, and date
+2. User creates a booking — seats are locked in Redis immediately
+3. Booking stays `PENDING` for 15 minutes while the user pays
+4. On successful payment → booking moves to `CONFIRMED`
+5. On payment failure or timeout → booking moves to `EXPIRED`, seats are released
+
+### Booking states
+
+```
+PENDING   →  CONFIRMED      (payment succeeded)
+PENDING   →  PAYMENT_FAILED
+PENDING   →  EXPIRED        (15 min timeout via Celery)
+CONFIRMED →  CANCELLED      (user cancels before cutoff, refund auto-triggered)
+```
+
+### Seat availability
+
+No individual seat numbers. Availability is computed as:
+
+```
+available = total_seats - confirmed_seats (DB) - locked_seats (Redis)
+```
+
+Redis handles fast concurrent locking. The database is the source of truth for confirmed seats.
 
 ---
 
-1. Register/Login at http://localhost:8000/ (or your ngrok URL when testing webhooks)
-2. Search for trains by source/destination
-3. Click "Book" to create a booking
-4. Add passenger details
-5. View booking details
-6. Complete payment
-7. View all your bookings
-8. Cancel bookings (if eligible)
+## Testing Payments Locally
 
----
-
-3. API Authentication Flow
-
----
-
-1. Register User
-   POST /api/auth/register/
-
-2. Login User
-   POST /api/auth/login/
-
-3. Use Access Token
-   Authorization: Bearer <access_token>
-
-All booking APIs require authentication.
-
----
-
-3. Core System Flow
-
----
-
-1. User searches trains
-2. System shows real-time availability
-3. User initiates booking
-4. Seats are locked temporarily (Redis)
-5. Booking remains PENDING
-6. User simulates payment
-7. On SUCCESS → booking CONFIRMED
-8. On FAILURE or timeout → booking EXPIRED
-
----
-
-4. Booking Lifecycle
-
----
+You need ngrok to receive Razorpay webhooks on localhost:
 
 ```bash
-PENDING
-   ↓ (Payment SUCCESS)
-CONFIRMED
+ngrok http 8000
+```
 
-PENDING
-   ↓ (Payment FAILED)
-EXPIRED
+In the Razorpay dashboard (Test Mode) under **Settings → Webhooks**:
 
-PENDING
-   ↓ (15 min timeout)
-EXPIRED
+- URL: `https://<your-ngrok-subdomain>.ngrok-free.app/api/payments/webhook/razorpay/`
+- Secret: same value as `RAZORPAY_WEBHOOK_SECRET` in your `.env`
+- Events: `payment.captured`, `refund.processed`, `refund.failed`
 
-CONFIRMED
-   ↓ (User cancels before cutoff)
-CANCELLED
+Use test card `4111 1111 1111 1111` with any future expiry and any CVV. No real money is charged.
+
+---
+
+## Project Structure
+
+```
+apps/
+  bookings/     booking lifecycle, passengers, RBAC
+  payments/     Razorpay integration, refunds
+  trains/       train search, schedules
+  core/         auth (register), Redis client
+config/         Django settings, Celery, URLs
+templates/      server-rendered UI
 ```
 
 ---
 
-5. Key Design Decisions
+## Assumptions
 
----
-
-- Count-based seats (no seat numbers) per schedule; availability is derived from total seats minus confirmed seats and Redis locks.
-- `seed_schedules` management command to generate per-day schedules for a date range using predefined routes.
-- Redis used purely for transient seat locks; source of truth for confirmed seats is the database.
-- Celery task `expire_booking` owns expiry; front-end timers are informational and derived from server-side timestamps.
-- Payment flow integrated with Razorpay test mode, including signature verification and a webhook for robust confirmation.
-
----
-
-6. Razorpay + ngrok (local webhook testing)
-
----
-
-- Start server: `python manage.py runserver 0.0.0.0:8000`
-- Start tunnel: `ngrok http 8000` → use the HTTPS URL it prints
-- Set env in `.env` (test keys + webhook secret):
-  - `RAZORPAY_KEY_ID=...`
-  - `RAZORPAY_KEY_SECRET=...`
-  - `RAZORPAY_WEBHOOK_SECRET=...`
-- In Razorpay Dashboard (Test mode):
-  - Webhook URL: `<your-ngrok-https>/api/bookings/razorpay/webhook/`
-  - Secret: same as `RAZORPAY_WEBHOOK_SECRET`
-  - Events: check `payment.captured`
-- Log in via the same ngrok URL (so session cookies match) before paying.
-- Flow: create booking → pay via Razorpay checkout → webhook confirms booking server-side; UI verify call is optional now.
-
----
-
-7. Architecture / Design Overview
-
----
-
-### High-level layers
-
-1. Presentation layer
-   - Django server-rendered UI views in `apps.trains.views_ui` and `apps.bookings.views_ui`.
-   - Django REST Framework APIs in `apps.trains.views`, `apps.bookings.views`, `apps.core.views`.
-
-2. Service layer
-   - Core booking logic (seat locking, payment processing, cancellation) in `apps.bookings.services`.
-
-3. Data layer
-   - Django ORM over SQLite (or any configured DB) with models:
-     - `Station`, `Train`, `Schedule` in `apps.trains.models`.
-     - `Booking`, `Passenger` in `apps.bookings.models`.
-
-4. Caching / locking layer
-   - Redis client in `apps.core.redis_client`.
-   - Keys: `seat_lock:<schedule_id>` store locked seat counts.
-
-5. Background worker layer
-   - Celery app in `config.celery`.
-   - Task `expire_booking` in `apps.bookings.tasks` handles automatic expiry.
-
-### Booking and seat-availability model
-
-- Each `Schedule` has `total_seats`.
-- Confirmed seats are derived from `Booking` rows with `status=CONFIRMED`.
-- Pending locks are stored in Redis via `lock_seats` in `apps.bookings.services`.
-
-Formula:
-
-```text
-available_seats = total_seats - confirmed_seats - locked_seats
-```
-
-This keeps confirmed data strongly consistent in the DB while using Redis for fast, concurrent seat locking.
-
-### Concurrency and race-condition handling
-
-- Seat locking:
-  - Uses atomic `INCRBY` in Redis (`lock_seats`).
-  - If `confirmed + locked` exceeds `total_seats`, it rolls back the lock with `DECRBY` and rejects the booking.
-
-- Booking expiry:
-  - Each new booking schedules a Celery task `expire_booking(booking_id)` with `LOCK_TTL` seconds.
-  - The task uses `select_for_update()` to lock the booking row and only expires bookings still `PENDING`.
-  - It also uses a Redis idempotency key `expire_task_executed:<booking_id>` to ensure only one worker executes the expiry logic.
-
-- Payment processing:
-  - `process_payment` in `apps.bookings.services` runs in a DB transaction, locking the booking row with `select_for_update()`.
-  - If already `CONFIRMED`, it returns early and does not touch Redis again.
-  - If `EXPIRED` or `CANCELLED`, it rejects payment as ineligible.
-  - On `SUCCESS`, it:
-    - Sets `status=CONFIRMED`,
-    - Updates all passengers to `CONFIRMED`,
-    - Decrements Redis by `locked_seats_count` for that schedule.
-
-### Payment and Razorpay integration
-
-- Order creation:
-  - `create_razorpay_order(booking)` creates an order with `amount` (₹500 per passenger), `currency=INR`, and `receipt=str(booking.id)`.
-
-- UI payment flow:
-  - `bookings/payment.html` uses Razorpay Checkout JS to open the payment popup.
-  - On success, it posts `order_id`, `payment_id`, and `signature` to `/api/bookings/<booking_id>/verify-payment/`.
-  - `verify_payment_api` verifies the signature and calls `process_payment`.
-  - If the webhook already confirmed the booking, this endpoint returns success idempotently.
-
-- Webhook flow (recommended for robustness):
-  - Endpoint: `/api/bookings/razorpay/webhook/`.
-  - Verifies `X-Razorpay-Signature` using `RAZORPAY_WEBHOOK_SECRET`.
-  - On `payment.captured`, it fetches the Razorpay order, reads `receipt` (booking id), and calls `process_payment(booking_id, "SUCCESS")`.
-  - Safe to receive duplicates; idempotency in `process_payment` prevents double processing.
-
----
-
-8. Assumptions
-
----
-
-- Single class of travel; all seats are homogeneous and count-based (no berth/coach-level allocation).
-- Flat fare of ₹500 per passenger (configurable via `FARE_PER_PASSENGER` in `apps.bookings.services`).
-- Booking cutoff is 2 hours before departure; cancellations are not allowed after that cutoff.
-- Payments are handled via Razorpay test environment; no real money is involved.
-- One user account represents a single customer.
-
-
-These simplify the model while focusing on seat locking, race conditions, and booking lifecycle correctness.
+- Flat fare of ₹500 per passenger
+- Booking cutoff is 2 hours before departure — no cancellations after that
+- Count-based seats only, no berth or coach allocation
+- One account per customer
+- All payments run through Razorpay test environment
