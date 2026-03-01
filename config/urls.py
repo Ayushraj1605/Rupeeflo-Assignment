@@ -30,6 +30,7 @@ urlpatterns = [
     # API Routes
     path('api/trains/', include('apps.trains.urls')),
     path('api/bookings/', include('apps.bookings.urls')),
+    path('api/payments/', include('apps.payments.urls')),
     path('api/auth/login/', TokenObtainPairView.as_view(), name='token_obtain_pair'),
     path('api/auth/refresh/', TokenRefreshView.as_view(), name='token_refresh'),
     path('api/auth/', include('apps.core.urls')),

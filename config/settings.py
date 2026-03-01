@@ -50,6 +50,7 @@ INSTALLED_APPS = [
     
     'apps.trains',
     'apps.bookings',
+    'apps.payments',
     'apps.core',
     'rest_framework',
 ]
